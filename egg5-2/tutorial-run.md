@@ -201,15 +201,14 @@ Cloud Run でカナリアリリースを実現する場合、新リビジョン�
  gcloud run deploy spanner-sqlalchemy-demo --source ./ --allow-unauthenticated  --no-traffic
 ```
 
-この時点では、１つ前の Revision にトラフィックがルーティングされており、新しいアプリケーションは公開されていません。
-以下のコマンドで確認します。
+この時点では、１つ前ののリビジョンにトラフィックがルーティングされており、新しいアプリケーションは公開されていません。以下のコマンドで確認します。
 
 ```shell
 export APP_URL=$(gcloud run services describe spanner-sqlalchemy-demo --format json | jq -r '.status.address.url')
 curl ${APP_URL}/runinfo/ && echo
 ```
 
-最新の Revision と、１つ前の Revision を取得して起きましょう。
+最新のリビジョンと、１つ前のリビジョンを取得して起きましょう。
 ```shell
 export NEW_REV=$(gcloud run revisions list --format json | jq -r '.[].metadata.name' | grep 'spanner-sqlalchemy-demo' | sort -r | sed -n 1p)
 export OLD_REV=$(gcloud run revisions list --format json | jq -r '.[].metadata.name' | grep 'spanner-sqlalchemy-demo' | sort -r | sed -n 2p)
@@ -251,14 +250,44 @@ gcloud run deploy spanner-sqlalchemy-demo --source ./ --allow-unauthenticated --
 
 また [Cloud Monitoring](https://console.cloud.google.com/monitoring/metrics-explorer?pageState=%7B%22xyChart%22:%7B%22dataSets%22:%5B%7B%22timeSeriesFilter%22:%7B%22filter%22:%22metric.type%3D%5C%22run.googleapis.com%2Fcontainer%2Finstance_count%5C%22%20resource.type%3D%5C%22cloud_run_revision%5C%22%20resource.label.%5C%22service_name%5C%22%3D%5C%22spanner-sqlalchemy-demo%5C%22%20resource.label.%5C%22project_id%5C%22%3D%5C%22{{project-id}}%5C%22%20resource.label.%5C%22location%5C%22%3D%5C%22{{region}}%5C%22%22,%22minAlignmentPeriod%22:%2260s%22,%22aggregations%22:%5B%7B%22perSeriesAligner%22:%22ALIGN_MAX%22,%22crossSeriesReducer%22:%22REDUCE_SUM%22,%22alignmentPeriod%22:%2260s%22,%22groupByFields%22:%5B%22metric.label.%5C%22state%5C%22%22,%22resource.label.%5C%22service_name%5C%22%22,%22resource.label.%5C%22revision_name%5C%22%22%5D%7D,%7B%22perSeriesAligner%22:%22ALIGN_NONE%22,%22crossSeriesReducer%22:%22REDUCE_NONE%22,%22alignmentPeriod%22:%2260s%22,%22groupByFields%22:%5B%5D%7D%5D%7D,%22targetAxis%22:%22Y1%22,%22plotType%22:%22LINE%22%7D%5D,%22options%22:%7B%22mode%22:%22COLOR%22%7D,%22constantLines%22:%5B%5D,%22timeshiftDuration%22:%220s%22,%22y1Axis%22:%7B%22label%22:%22y1Axis%22,%22scale%22:%22LINEAR%22%7D%7D,%22isAutoRefresh%22:true,%22timeSelection%22:%7B%22timeRange%22:%221h%22%7D%7D&project={{project-id}}) で、コンテナインスタンスの数が、どのように変化しているかも確認してみましょう。
 
+## [演習]. 環境のクリーンアップ
+
+すべての演習が終わったら、リソースを削除します。
+
+### 1.**プロジェクトを削除できる方**
+
+プロジェクトごと削除します。
+```
+gcloud projects delete ${PROJECT_ID}
+```
+
+### 2.**プロジェクトを削除できない方**
+
+Artifact Registry リポジトリを削除します。
+```shell
+gcloud artifacts repositories delete cloud-run-source-deploy
+gcloud artifacts repositories delete ${REPOSITORY_NAME}
+```
+
+Cloud Run アプリケーションを削除します。
+```shell
+gcloud run services delete spanner-sqlalchemy-demo
+```
+
+Cloud Storage のバケットを削除します。
+```shell
+gcloud alpha storage delete $(gcloud alpha storage ls) --recursive
+```
+
+Google Service Account を削除します。
+※これで、Cloud Shell に残っているサービス アカウント キーも無効となります。
+```shell
+gcloud iam service-accounts delete ${SA_NAME}@${PROJECT_ID}.iam.gserviceaccount.com
+```
 
 
-for dev
+Cloud Spanner のインスタンスを削除します。
+```shell
+gcloud spanner instances delete ${INSTANCE_ID}
 ```
-export REPOSITORY_NAME="egg5-2-1"
-export PROJECT_ID="shining-courage-349107"
-export INSTANCE_ID="myinstance"
-export DATABASE_ID="mydatabase"
-export SA_NAME="spanner-demo"
-export SA_KEY_NAME="spanner-demo-key"
-```
+
